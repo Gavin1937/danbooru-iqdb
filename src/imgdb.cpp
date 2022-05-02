@@ -63,9 +63,9 @@ void bucket_set::eachBucket(const HaarSignature &sig, std::function<void(bucket_
   }
 }
 
-void IQDB::addImage(imageId post_id, const HaarSignature& haar) {
+void IQDB::addImage(imageId post_id, const std::string& md5, const HaarSignature& haar) {
   removeImage(post_id);
-  int iqdb_id = sqlite_db_->addImage(post_id, haar);
+  int iqdb_id = sqlite_db_->addImage(post_id, md5, haar);
   addImageInMemory(iqdb_id, post_id, haar);
 
   DEBUG("Added post #{} to memory and database (iqdb={} haar={}).\n", post_id, iqdb_id, haar.to_string());
@@ -109,6 +109,10 @@ bool IQDB::isDeleted(imageId iqdb_id) {
 
 std::optional<Image> IQDB::getImage(imageId post_id) {
   return sqlite_db_->getImage(post_id);
+}
+
+std::optional<Image> IQDB::getImageByMD5(const std::string& md5) {
+  return sqlite_db_->getImageByMD5(md5);
 }
 
 sim_vector IQDB::queryFromBlob(const std::string blob, int numres) {

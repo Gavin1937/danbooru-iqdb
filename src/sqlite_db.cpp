@@ -35,12 +35,24 @@ std::optional<Image> SqliteDB::getImage(postId post_id) {
   }
 }
 
-int SqliteDB::addImage(postId post_id, HaarSignature signature) {
+std::optional<Image> SqliteDB::getImageByMD5(const std::string& md5) {
+  std::unique_lock lock(sql_mutex_);
+  auto results = storage_.get_all<Image>(where(c(&Image::md5) == md5));
+
+  if (results.size() == 1) {
+    return results[0];
+  } else {
+    DEBUG("Couldn't find md5 #{} in sqlite database.\n", md5);
+    return std::nullopt;
+  }
+}
+
+int SqliteDB::addImage(postId post_id, const std::string& md5, HaarSignature signature) {
   int id = -1;
   auto sig_ptr = (const char*)signature.sig;
   std::vector<char> sig_blob(sig_ptr, sig_ptr + sizeof(signature.sig));
   Image image {
-    0, post_id, signature.avglf[0], signature.avglf[1], signature.avglf[2], sig_blob
+    0, post_id, md5, signature.avglf[0], signature.avglf[1], signature.avglf[2], sig_blob
   };
 
   storage_.transaction([&] {

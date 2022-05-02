@@ -69,6 +69,9 @@ struct sim_value {
   Score score;
   sim_value(imageId id_, Score score_) : id(id_), score(score_) {};
   bool operator<(const sim_value &other) const { return score < other.score; }
+  bool operator==(const sim_value &other) const {
+    return (id == other.id && score == other.score);
+  }
 };
 
 struct image_info {
@@ -94,8 +97,9 @@ public:
   bool isDeleted(imageId id); // XXX id is the iqdb id
 
   // DB maintenance.
-  void addImage(imageId id, const HaarSignature& signature);
+  void addImage(imageId id, const std::string& md5, const HaarSignature& signature);
   std::optional<Image> getImage(imageId post_id);
+  std::optional<Image> getImageByMD5(const std::string& md5);
   void removeImage(imageId id);
   void loadDatabase(std::string filename);
 

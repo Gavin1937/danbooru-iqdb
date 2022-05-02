@@ -25,12 +25,17 @@
 #include <memory>
 #include <mutex>
 #include <shared_mutex>
+// [mod]
+#include <algorithm>
 
 #include <iqdb/debug.h>
 #include <iqdb/imgdb.h>
 #include <iqdb/imglib.h>
 #include <iqdb/haar_signature.h>
 #include <iqdb/types.h>
+
+// [mod] getMD5()
+#include <iqdb/MD5.h>
 
 #include <httplib.h>
 #include <nlohmann/json.hpp>
@@ -85,11 +90,15 @@ void http_server(const std::string host, const int port, const std::string datab
 
     const postId post_id = std::stoi(request.matches[1]);
     const auto &file = request.get_file_value("file");
+    // [mod] get md5 hash & add it to db
+    std::string md5 = getMD5(file.content);
+    // [mod] end
     const auto signature = HaarSignature::from_file_content(file.content);
-    memory_db->addImage(post_id, signature);
+    memory_db->addImage(post_id, md5, signature);
 
     json data = {
       { "post_id", post_id },
+      { "md5", md5 }, // [mod] response md5 to client
       { "hash", signature.to_string() },
       { "signature", {
         { "avglf", signature.avglf },
@@ -130,9 +139,25 @@ void http_server(const std::string host, const int port, const std::string datab
     } else if (request.has_file("file")) {
       const auto &file = request.get_file_value("file");
       matches = memory_db->queryFromBlob(file.content, limit);
+    } else if (request.has_param("md5")) {
+      const auto md5 = request.get_param_value("md5");
+      const auto img = memory_db->getImageByMD5(md5);
+      if (img != std::nullopt)
+        matches = memory_db->queryFromSignature(img->haar(), limit);
     } else {
-      throw param_error("`POST /query` requires a `file` or `hash` param");
+      throw param_error("`POST /query` requires a `file`, `hash`, or `md5` param");
     }
+    // rm duplicate in matches
+    // insert non-duplicate elements into tmp
+    sim_vector tmp;
+    tmp.reserve(matches.size());
+    for (auto m : matches)
+    {
+      if (std::find(tmp.begin(), tmp.end(), m) == tmp.end())
+        tmp.emplace_back(m);
+    }
+    // overwrite matches with tmp
+    matches.assign(tmp.begin(), tmp.end());
 
     for (const auto &match : matches) {
       auto image = memory_db->getImage(match.id);
@@ -140,6 +165,7 @@ void http_server(const std::string host, const int port, const std::string datab
 
       data += {
         { "post_id", match.id },
+        { "md5", image->md5 },
         { "score", match.score },
         { "hash", haar.to_string() },
         { "signature", {

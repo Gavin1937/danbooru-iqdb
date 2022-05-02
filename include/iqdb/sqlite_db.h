@@ -19,6 +19,7 @@ namespace iqdb {
 struct Image {
   iqdbId id;             // The internal IQDB ID.
   postId post_id;        // The external (Danbooru) post ID.
+  std::string md5;       // [mod] MD5 hash of current image.
   double avglf1;         // The `double avglf[3]` array.
   double avglf2;
   double avglf3;
@@ -35,6 +36,7 @@ static auto initStorage(const std::string& path = ":memory:") {
     make_table("images",
       make_column("id",       &Image::id, primary_key()),
       make_column("post_id",  &Image::post_id, unique()),
+      make_column("md5",      &Image::md5, unique()),
       make_column("avglf1",   &Image::avglf1),
       make_column("avglf2",   &Image::avglf2),
       make_column("avglf3",   &Image::avglf3),
@@ -56,9 +58,11 @@ public:
 
   // Get an image from the database, if it exists.
   std::optional<Image> getImage(postId post_id);
+  // Get an image from the database by input md5, if it exists.
+  std::optional<Image> getImageByMD5(const std::string& md5);
 
   // Add the image to the database. Replace the image if it already exists. Returns the internal IQDB id.
-  int addImage(postId post_id, HaarSignature signature);
+  int addImage(postId post_id, const std::string& md5, HaarSignature signature);
 
   // Remove the image from the database.
   void removeImage(postId post_id);

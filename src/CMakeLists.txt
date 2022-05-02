@@ -14,6 +14,7 @@ target_link_libraries(
   sqlite_orm::sqlite_orm
   ${CMAKE_DL_LIBS} # libdl (for dlsym)
   ${GDLIB_LIBRARIES}
+  crypto # [mod] openssl crypto lib for md5
 )
 
 # https://cmake.org/cmake/help/latest/command/target_include_directories.html
