@@ -32,7 +32,7 @@ int SqliteDB::getImgCount()
     return static_cast<int>(results);
   } else {
     DEBUG("Couldn't count post_id in sqlite database.\n");
-    return -1;
+    return 0;
   }
 }
 
@@ -45,7 +45,7 @@ postId SqliteDB::getMaxPostId()
     return static_cast<postId>(*results);
   } else {
     DEBUG("Couldn't find max post_id in sqlite database.\n");
-    return -1;
+    return 0;
   }
 }
 
