@@ -94,20 +94,21 @@ public:
 
   // Stats.
   size_t getImgCount();
+  postId getLastPostId();
   bool isDeleted(imageId id); // XXX id is the iqdb id
 
   // DB maintenance.
   void addImage(imageId id, const std::string& md5, const HaarSignature& signature);
   std::optional<Image> getImage(imageId post_id);
   std::optional<Image> getImageByMD5(const std::string& md5);
-  void removeImage(imageId id);
+  bool removeImage(imageId id);
+  bool removeImageByMD5(const std::string& md5);
   void loadDatabase(std::string filename);
 
 private:
   void addImageInMemory(imageId iqdb_id, imageId post_id, const HaarSignature& signature);
 
   std::vector<image_info> m_info;
-  size_t m_info_size = 0;
   std::unique_ptr<SqliteDB> sqlite_db_;
   bucket_set imgbuckets;
 

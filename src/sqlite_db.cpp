@@ -23,10 +23,36 @@ void SqliteDB::eachImage(std::function<void (const Image&)> func) {
   }
 }
 
+int SqliteDB::getImgCount()
+{
+  std::unique_lock lock(sql_mutex_);
+  auto results = storage_.count(&Image::post_id);
+  
+  if (results) {
+    return static_cast<int>(results);
+  } else {
+    DEBUG("Couldn't count post_id in sqlite database.\n");
+    return -1;
+  }
+}
+
+postId SqliteDB::getMaxPostId()
+{
+  std::unique_lock lock(sql_mutex_);
+  auto results = storage_.max(&Image::post_id);
+  
+  if (results) {
+    return static_cast<postId>(*results);
+  } else {
+    DEBUG("Couldn't find max post_id in sqlite database.\n");
+    return -1;
+  }
+}
+
 std::optional<Image> SqliteDB::getImage(postId post_id) {
   std::unique_lock lock(sql_mutex_);
   auto results = storage_.get_all<Image>(where(c(&Image::post_id) == post_id));
-
+  
   if (results.size() == 1) {
     return results[0];
   } else {
@@ -38,11 +64,11 @@ std::optional<Image> SqliteDB::getImage(postId post_id) {
 std::optional<Image> SqliteDB::getImageByMD5(const std::string& md5) {
   std::unique_lock lock(sql_mutex_);
   auto results = storage_.get_all<Image>(where(c(&Image::md5) == md5));
-
+  
   if (results.size() == 1) {
     return results[0];
   } else {
-    DEBUG("Couldn't find md5 #{} in sqlite database.\n", md5);
+    DEBUG("Couldn't find md5 {} in sqlite database.\n", md5);
     return std::nullopt;
   }
 }
@@ -54,13 +80,13 @@ int SqliteDB::addImage(postId post_id, const std::string& md5, HaarSignature sig
   Image image {
     0, post_id, md5, signature.avglf[0], signature.avglf[1], signature.avglf[2], sig_blob
   };
-
+  
   storage_.transaction([&] {
     removeImage(post_id);
     id = storage_.insert(image);
     return true;
   });
-
+  
   return id;
 }
 

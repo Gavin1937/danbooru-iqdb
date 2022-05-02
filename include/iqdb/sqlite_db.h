@@ -56,6 +56,10 @@ public:
   // Open database at path. Default to a temporary memory-only database.
   SqliteDB(const std::string& path = ":memory:") : storage_(initStorage(path)) {};
 
+  // Get number of images
+  int getImgCount();
+  // Get MAX post id
+  postId getMaxPostId();
   // Get an image from the database, if it exists.
   std::optional<Image> getImage(postId post_id);
   // Get an image from the database by input md5, if it exists.

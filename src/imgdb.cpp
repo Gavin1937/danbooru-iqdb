@@ -72,11 +72,10 @@ void IQDB::addImage(imageId post_id, const std::string& md5, const HaarSignature
 }
 
 void IQDB::addImageInMemory(imageId iqdb_id, imageId post_id, const HaarSignature& haar) {
-  if ((size_t)iqdb_id >= m_info.size()) {
+  if ((size_t)post_id >= m_info.size()) {
     DEBUG("Growing m_info array (size={}).\n", m_info.size());
-    m_info.resize(iqdb_id + 50000);
+    m_info.resize(post_id + 50000);
   }
-  m_info_size++;
 
   imgbuckets.add(haar, iqdb_id);
 
@@ -188,23 +187,42 @@ sim_vector IQDB::queryFromSignature(const HaarSignature &signature, size_t numre
   return V;
 }
 
-void IQDB::removeImage(imageId post_id) {
+bool IQDB::removeImage(imageId post_id) {
   auto image = sqlite_db_->getImage(post_id);
   if (image == std::nullopt) {
     WARN("Couldn't remove post #{}; post not in sqlite database.\n", post_id);
-    return;
+    return false;
   }
-  m_info_size--;
 
   imgbuckets.remove(image->haar(), image->id);
   m_info.at(image->id).avgl.v[0] = 0;
   sqlite_db_->removeImage(post_id);
 
   DEBUG("Removed post #{} from memory and database.\n", post_id);
+  return true;
+}
+
+bool IQDB::removeImageByMD5(const std::string& md5) {
+  auto image = sqlite_db_->getImageByMD5(md5);
+  if (image == std::nullopt) {
+    WARN("Couldn't remove file with md5 {}; this md5 is not in sqlite database.\n", md5);
+    return false;
+  }
+
+  imgbuckets.remove(image->haar(), image->id);
+  m_info.at(image->id).avgl.v[0] = 0;
+  sqlite_db_->removeImage(image->post_id);
+
+  DEBUG("Removed post #{} from memory and database.\n", image->post_id);
+  return true;
 }
 
 size_t IQDB::getImgCount() {
-  return m_info_size;
+  return sqlite_db_->getImgCount();
+}
+
+postId IQDB::getLastPostId() {
+  return sqlite_db_->getMaxPostId();
 }
 
 IQDB::IQDB(std::string filename) : sqlite_db_(nullptr) {

@@ -37,9 +37,14 @@ stored on disk in an SQLite database.
 
 #### Adding images
 
-To add an image to the database, POST a file to `/images/:id` where `:id` is an
-ID number for the image. On Danbooru, the IDs used are post IDs, but they can
+To add an image to the database, POST a file to `/images/:id?md5=M` where
+<br>
+`:id` is an ID number for the image. On Danbooru, the IDs used are post IDs, but they can
 be any number to identify the image.
+<br>
+And, you can supply optional parameter `md5` with value `M` which is the md5 hash of a file.
+If this parameter is supplied, iqdb will use it as the hash stored in db.
+
 
 ```bash
 curl -F file=@test.jpg http://localhost:5588/images/1234
@@ -63,8 +68,13 @@ string.
 
 #### Removing images
 
-To remove an image to the database, do `DELETE /images/:id` where `:id` is the
+To remove an image to the database, do `DELETE /images/:id?md5=M` where `:id` is the
 ID number of the image.
+<br>
+And, parameter `md5` are optional with value `M` be the md5 hash of a file.
+If this parameter is supplied, iqdb will prioritize it first.
+To use this parameter, you need to supply a placeholder number in `:id` section as well.
+<br>
 
 ```bash
 curl -X DELETE http://localhost:5588/images/1234
@@ -76,10 +86,16 @@ curl -X DELETE http://localhost:5588/images/1234
 
 #### Searching for images
 
-To search for an image, POST a `file` to `/query?limit=N&md5=M&hash=H`, where:
-`N` is the maximum number of results to return (default 10),
-[optional] `M` is the md5 hash of a file, and
+To search for an image, POST a `file` to `/query?limit=N&md5=M&hash=H`.
+<br>
+There are three optional url parameters:
+<br>
+[optional] `N` is the maximum number of results to return (default 10).
+<br>
+[optional] `M` is the md5 hash of a file.
+<br>
 [optional] `H` is the haar hash of an image.
+<br>
 
 There should be at least one file or md5 or hash provided.
 

@@ -82,16 +82,22 @@ void http_server(const std::string host, const int port, const std::string datab
 
   install_signal_handlers();
 
+  // Adding Image
   server.Post("/images/(\\d+)", [&](const auto &request, auto &response) {
     std::unique_lock lock(mutex_);
 
     if (!request.has_file("file"))
-      throw iqdb::param_error("`POST /images/:id` requires a `file` param");
+      throw iqdb::param_error("`POST /images/:id?md5=M` requires a `file` param");
 
     const postId post_id = std::stoi(request.matches[1]);
     const auto &file = request.get_file_value("file");
     // [mod] get md5 hash & add it to db
-    std::string md5 = getMD5(file.content);
+    std::string md5 = "";
+    if (request.has_param("md5")) {
+      md5 = request.get_param_value("md5");
+    } else {
+      md5 = getMD5(file.content);
+    }
     // [mod] end
     const auto signature = HaarSignature::from_file_content(file.content);
     memory_db->addImage(post_id, md5, signature);
@@ -109,19 +115,30 @@ void http_server(const std::string host, const int port, const std::string datab
     response.set_content(data.dump(4), "application/json");
   });
 
+  // Removing images
   server.Delete("/images/(\\d+)", [&](const auto &request, auto &response) {
     std::unique_lock lock(mutex_);
 
-    const postId post_id = std::stoi(request.matches[1]);
-    memory_db->removeImage(post_id);
+    postId post_id = -1;
+    if (request.has_param("md5")) {
+      const auto md5 = request.get_param_value("md5");
+      post_id = memory_db->getImageByMD5(md5)->post_id;
+    } else {
+      post_id = std::stoi(request.matches[1]);
+    }
+    bool ret = memory_db->removeImage(post_id);
 
-    json data = {
-      { "post_id", post_id },
-    };
+    json data = {{}};
+    if (ret) {
+      data = {
+        { "post_id", post_id },
+      };
+    }
 
     response.set_content(data.dump(4), "application/json");
   });
 
+  // Searching for images
   server.Post("/query", [&](const auto &request, auto &response) {
     std::shared_lock lock(mutex_);
 
@@ -178,11 +195,16 @@ void http_server(const std::string host, const int port, const std::string datab
     response.set_content(data.dump(4), "application/json");
   });
 
+  // DB status
   server.Get("/status", [&](const auto &request, auto &response) {
     std::shared_lock lock(mutex_);
 
     const size_t count = memory_db->getImgCount();
-    json data = {{"images", count}};
+    const postId post_id = memory_db->getLastPostId();
+    json data = {
+      {"image_count", count},
+      {"last_post_id", post_id}
+    };
 
     response.set_content(data.dump(4), "application/json");
   });
