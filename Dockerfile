@@ -1,9 +1,12 @@
-FROM ubuntu:20.10 AS build
+FROM ubuntu:20.04 AS build
 ARG CMAKE_VERSION=3.21.1
 
 WORKDIR /iqdb
+ENV TZ=America/Los_Angeles
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone && \
+  apt-get update -y && \
+  apt-get install -y tzdata
 RUN \
-  apt-get update && \
   apt-get install --yes --no-install-recommends \
     wget ca-certificates build-essential cmake git python3 libgd-dev libsqlite3-dev binutils-dev && \
   wget https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}-linux-x86_64.tar.gz -O cmake.tar.gz && \
@@ -11,7 +14,7 @@ RUN \
 COPY . ./
 RUN make release
 
-FROM ubuntu:20.10
+FROM ubuntu:20.04
 WORKDIR /iqdb
 RUN \
   apt-get update && \
