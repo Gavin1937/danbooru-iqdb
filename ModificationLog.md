@@ -5,6 +5,8 @@
 
 ## 1. make iqdb http get request on /status to return real image number (especially for small dataset)
 
-## 2. and, let iqdb to add/store/query/delete img md5
+## 2. let iqdb to add/store/query/delete img md5
+
+## 3. let iqdb to support png, gif, and bmp files
 
 
