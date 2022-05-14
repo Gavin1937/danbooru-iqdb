@@ -82,9 +82,13 @@ int SqliteDB::addImage(postId post_id, const std::string& md5, HaarSignature sig
   };
   
   storage_.transaction([&] {
-    removeImage(post_id);
-    id = storage_.insert(image);
-    return true;
+    try {
+      removeImage(post_id);
+      id = storage_.insert(image);
+      return true; // commit
+    } catch (...) {
+      return false; // rollback
+    }
   });
   
   return id;
