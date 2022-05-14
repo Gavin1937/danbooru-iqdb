@@ -66,6 +66,13 @@ void bucket_set::eachBucket(const HaarSignature &sig, std::function<void(bucket_
 void IQDB::addImage(imageId post_id, const std::string& md5, const HaarSignature& haar) {
   removeImage(post_id);
   int iqdb_id = sqlite_db_->addImage(post_id, md5, haar);
+  if (iqdb_id == -1) {
+    // fail insertint into sqlite db
+    // assuming UNIQUE constraint on md5
+    // throw exception and handle it outside
+    DEBUG("MD5 UNIQUE constrain failed. post_id = {}, md5 = {}\n", post_id, md5);
+    throw image_error("MD5 UNIQUE constrain failed.");
+  }
   addImageInMemory(iqdb_id, post_id, haar);
 
   DEBUG("Added post #{} to memory and database (iqdb={} haar={}).\n", post_id, iqdb_id, haar.to_string());

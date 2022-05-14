@@ -98,20 +98,28 @@ void http_server(const std::string host, const int port, const std::string datab
     } else {
       md5 = getMD5(file.content);
     }
+    
+    json data;
+    try {
+      const auto signature = HaarSignature::from_file_content(file.content);
+      memory_db->addImage(post_id, md5, signature);
+      data = {
+        { "post_id", post_id },
+        { "md5", md5 }, // [mod] response md5 to client
+        { "hash", signature.to_string() },
+        { "signature", {
+          { "avglf", signature.avglf },
+          { "sig", signature.sig },
+        }}
+      };
+    } catch (const image_error& e) { // catch image_error throwed by IQDB::addImage()
+      data = {
+        { "error", "MD5 UNIQUE constrain failed, this file already in database." },
+        { "md5", md5 }
+      };
+    }
+    
     // [mod] end
-    const auto signature = HaarSignature::from_file_content(file.content);
-    memory_db->addImage(post_id, md5, signature);
-
-    json data = {
-      { "post_id", post_id },
-      { "md5", md5 }, // [mod] response md5 to client
-      { "hash", signature.to_string() },
-      { "signature", {
-        { "avglf", signature.avglf },
-        { "sig", signature.sig },
-      }}
-    };
-
     response.set_content(data.dump(4), "application/json");
   });
 
