@@ -91,6 +91,8 @@ void IQDB::addImageInMemory(imageId iqdb_id, imageId post_id, const HaarSignatur
   info.avgl.v[0] = static_cast<Score>(haar.avglf[0]);
   info.avgl.v[1] = static_cast<Score>(haar.avglf[1]);
   info.avgl.v[2] = static_cast<Score>(haar.avglf[2]);
+  
+  last_post_id++;
 }
 
 void IQDB::loadDatabase(std::string filename) {
@@ -200,11 +202,13 @@ bool IQDB::removeImage(imageId post_id) {
     WARN("Couldn't remove post #{}; post not in sqlite database.\n", post_id);
     return false;
   }
-
+  
   imgbuckets.remove(image->haar(), image->id);
   m_info.at(image->id).avgl.v[0] = 0;
   sqlite_db_->removeImage(post_id);
-
+  
+  last_post_id--;
+  
   DEBUG("Removed post #{} from memory and database.\n", post_id);
   return true;
 }
@@ -215,11 +219,13 @@ bool IQDB::removeImageByMD5(const std::string& md5) {
     WARN("Couldn't remove file with md5 {}; this md5 is not in sqlite database.\n", md5);
     return false;
   }
-
+  
   imgbuckets.remove(image->haar(), image->id);
   m_info.at(image->id).avgl.v[0] = 0;
   sqlite_db_->removeImage(image->post_id);
-
+  
+  last_post_id--;
+  
   DEBUG("Removed post #{} from memory and database.\n", image->post_id);
   return true;
 }
@@ -229,11 +235,12 @@ size_t IQDB::getImgCount() {
 }
 
 postId IQDB::getLastPostId() {
-  return sqlite_db_->getMaxPostId();
+  return last_post_id;
 }
 
 IQDB::IQDB(std::string filename) : sqlite_db_(nullptr) {
   loadDatabase(filename);
+  last_post_id = sqlite_db_->getMaxPostId();
 }
 
 }

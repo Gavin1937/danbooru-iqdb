@@ -76,19 +76,19 @@ void install_signal_handlers() {
 
 void http_server(const std::string host, const int port, const std::string database_filename) {
   INFO("Starting server...\n");
-
+  
   std::shared_mutex mutex_;
   auto memory_db = std::make_unique<IQDB>(database_filename);
-
+  
   install_signal_handlers();
-
+  
   // Adding Image
   server.Post("/images/(\\d+)", [&](const auto &request, auto &response) {
     std::unique_lock lock(mutex_);
-
+    
     if (!request.has_file("file"))
       throw iqdb::param_error("`POST /images/:id?md5=M` requires a `file` param");
-
+    
     const postId post_id = std::stoi(request.matches[1]);
     const auto &file = request.get_file_value("file");
     // [mod] get md5 hash & add it to db
@@ -122,11 +122,11 @@ void http_server(const std::string host, const int port, const std::string datab
     // [mod] end
     response.set_content(data.dump(4), "application/json");
   });
-
+  
   // Removing images
   server.Delete("/images/(\\d+)", [&](const auto &request, auto &response) {
     std::unique_lock lock(mutex_);
-
+    
     postId post_id = -1;
     if (request.has_param("md5")) {
       const auto md5 = request.get_param_value("md5");
@@ -135,28 +135,28 @@ void http_server(const std::string host, const int port, const std::string datab
       post_id = std::stoi(request.matches[1]);
     }
     bool ret = memory_db->removeImage(post_id);
-
+    
     json data = {{}};
     if (ret) {
       data = {
         { "post_id", post_id },
       };
     }
-
+    
     response.set_content(data.dump(4), "application/json");
   });
-
+  
   // Searching for images
   server.Post("/query", [&](const auto &request, auto &response) {
     std::shared_lock lock(mutex_);
-
+    
     int limit = 10;
     sim_vector matches;
     json data = json::array();
-
+    
     if (request.has_param("limit"))
       limit = stoi(request.get_param_value("limit"));
-
+    
     if (request.has_param("hash")) {
       const auto hash = request.get_param_value("hash");
       HaarSignature haar = HaarSignature::from_hash(hash);
@@ -183,11 +183,11 @@ void http_server(const std::string host, const int port, const std::string datab
     }
     // overwrite matches with tmp
     matches.assign(tmp.begin(), tmp.end());
-
+    
     for (const auto &match : matches) {
       auto image = memory_db->getImage(match.id);
       auto haar = image->haar();
-
+      
       data += {
         { "post_id", match.id },
         { "md5", image->md5 },
@@ -199,44 +199,44 @@ void http_server(const std::string host, const int port, const std::string datab
         }}
       };
     }
-
+    
     response.set_content(data.dump(4), "application/json");
   });
-
+  
   // DB status
   server.Get("/status", [&](const auto &request, auto &response) {
     std::shared_lock lock(mutex_);
-
+    
     const size_t count = memory_db->getImgCount();
     const postId post_id = memory_db->getLastPostId();
     json data = {
       {"image_count", count},
       {"last_post_id", post_id}
     };
-
+    
     response.set_content(data.dump(4), "application/json");
   });
-
+  
   server.set_logger([](const auto &req, const auto &res) {
     INFO("{} \"{} {} {}\" {} {}\n", req.remote_addr, req.method, req.path, req.version, res.status, res.body.size());
   });
-
+  
   server.set_exception_handler([](const auto& req, auto& res, std::exception &e) {
     const auto name = demangle_name(typeid(e).name());
     const auto message = e.what();
-
+    
     json data = {
       { "exception", name },
       { "message", message },
       { "backtrace", last_exception_backtrace }
     };
-
+    
     DEBUG("Exception: {} ({})\n{}\n", name, message, last_exception_backtrace);
-
+    
     res.set_content(data.dump(4), "application/json");
     res.status = 500;
   });
-
+  
   INFO("Listening on {}:{}.\n", host, port);
   server.listen(host.c_str(), port);
   INFO("Stopping server...\n");
@@ -248,7 +248,7 @@ void help() {
     "  iqdb http [host] [port] [dbfile]  Run HTTP server on given host/port.\n"
     "  iqdb help                         Show this help.\n"
   );
-
+  
   exit(0);
 }
 

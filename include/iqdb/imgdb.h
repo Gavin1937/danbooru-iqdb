@@ -111,6 +111,7 @@ private:
   std::vector<image_info> m_info;
   std::unique_ptr<SqliteDB> sqlite_db_;
   bucket_set imgbuckets;
+  postId last_post_id = 0;
 
 private:
   void operator=(const IQDB &);
