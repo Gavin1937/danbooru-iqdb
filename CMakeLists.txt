@@ -77,9 +77,8 @@ FetchContent_MakeAvailable(backwardcpp)
 find_package(SQLite3 REQUIRED)
 find_package(Threads REQUIRED)
 find_package(PkgConfig REQUIRED)
-# [mod] openssl for md5
 find_package(OpenSSL REQUIRED)
-# [mod] end
+
 pkg_check_modules(GDLIB REQUIRED gdlib)
 
 add_subdirectory(src)

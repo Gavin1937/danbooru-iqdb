@@ -78,6 +78,8 @@ If this parameter is supplied, iqdb will use it as the hash stored in db.
 <br>
 If supplied `id` is duplicated, iqdb will replace the image in database with supplied image file.
 
+**Input `:id` MUST greater than 0**
+
 ```bash
 curl -F file=@test.jpg http://localhost:5588/images/1234
 ```

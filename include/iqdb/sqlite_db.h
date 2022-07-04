@@ -19,7 +19,7 @@ namespace iqdb {
 struct Image {
   iqdbId id;             // The internal IQDB ID.
   postId post_id;        // The external (Danbooru) post ID.
-  std::string md5;       // [mod] MD5 hash of current image.
+  std::string md5;       // MD5 hash of current image.
   double avglf1;         // The `double avglf[3]` array.
   double avglf2;
   double avglf3;
