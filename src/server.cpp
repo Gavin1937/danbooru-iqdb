@@ -27,6 +27,7 @@
 #include <shared_mutex>
 // [mod]
 #include <algorithm>
+#include <regex>
 
 #include <iqdb/debug.h>
 #include <iqdb/imgdb.h>
@@ -168,22 +169,55 @@ void http_server(const std::string host, const int port, const std::string datab
   });
   
   // Removing images
-  server.Delete("/images/(\\d+)", [&](const auto &request, auto &response) {
+  server.Delete("/images/([0-9a-fA-F]{0,32})", [&](const auto &request, auto &response) {
     std::unique_lock lock(mutex_);
     
-    postId post_id = -1;
-    if (request.has_param("md5")) {
-      const auto md5 = request.get_param_value("md5");
-      post_id = memory_db->getImageByMD5(md5)->post_id;
-    } else {
-      post_id = std::stoi(request.matches[1]);
+    postId post_id = 0;
+    std::string md5 = "";
+    std::string tmp_param = request.matches[1];
+    bool invalid_param = false;
+    // tmp_param is post_id
+    if (tmp_param.size() > 0 && tmp_param.size() <= 9 && std::all_of(tmp_param.begin(), tmp_param.end(), ::isdigit))
+    {
+      post_id = std::stoi(tmp_param);
+      auto img = memory_db->getImage(post_id);
+      if (img)
+        md5 = img->md5;
     }
+    // tmp_param is md5
+    else if (tmp_param.size() == 32 && std::all_of(tmp_param.begin(), tmp_param.end(), ::isxdigit))
+    {
+      md5 = tmp_param;
+      auto img = memory_db->getImageByMD5(md5);
+      if (img)
+        post_id = img->post_id;
+    }
+    // invalid tmp_param
+    else
+    {
+      invalid_param = true;
+    }
+    
     bool ret = memory_db->removeImage(post_id);
     
     json data = {{}};
     if (ret) {
       data = {
         { "post_id", post_id },
+        { "md5", md5 }
+      };
+    } else if (!invalid_param) { // valid param & ret false
+      std::string msg = "Image does not exist in database.";
+      if (post_id > 0)
+        msg = "(" + std::regex_replace("post_id: {}", std::regex("\\{\\}"), std::to_string(post_id)) + ") " + msg;
+      if (md5.size() == 32)
+        msg = "(" + std::regex_replace("md5: {}", std::regex("\\{\\}"), md5) + ") " + msg;
+      data = {
+        { "error", msg }
+      };
+    } else { // invalid param & ret false
+      data = {
+        { "error", "Invalid request url, you should supply integer post_id or md5 hash string (32-digit)." }
       };
     }
     

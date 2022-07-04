@@ -23,6 +23,9 @@ curl -F file=@test.jpg http://localhost:5588/images
 # Add `test.jpg` to IQDB with ID 1234. You will need to generate a unique ID for every image you add.
 curl -F file=@test.jpg http://localhost:5588/images/1234
 
+# Removing image with post_id 1234 from database
+curl -X DELETE http://localhost:5588/images/1234
+
 # Find images visually similar to `test.jpg`.
 curl -F file=@test.jpg http://localhost:5588/query
 ```
@@ -38,7 +41,7 @@ IQDB is a simple HTTP server with a JSON API. It has commands for adding
 images, removing images, and searching for similar images. Image hashes are
 stored on disk in an SQLite database.
 
-#### Add image with latest post_id
+### Add image with latest post_id
 
 To add an image to database with latest post_id, POST a file to `/images?md5=M` where
 <br>
@@ -49,7 +52,7 @@ If this parameter is supplied, iqdb will use it as the hash stored in db.
 curl -F file=@test.jpg http://localhost:5588/images
 ```
 
-#### Add/Replace image with specific post_id
+### Add/Replace image with specific post_id
 
 To add an image to the database with specific `post_id`, POST a file to `/images/:id?md5=M` where
 <br>
@@ -106,35 +109,59 @@ string.
 }
 ```
 
-#### Removing images
+### Removing images
 
-To remove an image to the database, do `DELETE /images/:id?md5=M` where `:id` is the
-ID number of the image.
-<br>
-And, parameter `md5` are optional with value `M` be the md5 hash of a file.
-If this parameter is supplied, iqdb will prioritize it first.
-To use this parameter, you need to supply a placeholder number in `:id` section as well.
-<br>
+To remove an image to the database, do `DELETE /images/:id` or `DELETE /images/:md5` where `:id` is the post_id of image and `:md5` is md5 hash string of image file.
 
 ```bash
 curl -X DELETE http://localhost:5588/images/1234
+
+or
+
+curl -X DELETE http://localhost:5588/images/1234567890abcdef1234567890abcdef
 ```
+
+**If Removing success**
 
 ```json
-{ "post_id": 1234 }
+{
+  "md5": "1234567890abcdef1234567890abcdef",
+  "post_id": 1234
+}
 ```
 
-#### Searching for images
+**If Removing failed**
+
+```json
+{
+  "error": "(post_id: 1234) Image does not exist in database."
+}
+```
+or
+```json
+{
+  "error": "(md5: 1234567890abcdef1234567890abcdef) Image does not exist in database."
+}
+```
+
+**If invalid request url (not a post_id or md5 hash string)**
+```json
+{
+  "error": "Invalid request url, you should supply integer post_id or md5 hash string (32-digit)."
+}
+```
+
+### Searching for images
 
 To search for an image, POST a `file` to `/query?limit=N&md5=M&hash=H`.
 <br>
 There are three optional url parameters:
 <br>
-[optional] `N` is the maximum number of results to return (default 10).
+[optional] `limit=N` is the maximum number of results to return (default 10).
 <br>
-[optional] `M` is the md5 hash of a file.
+[optional] `md5=M` is the md5 hash of a file.
 <br>
-[optional] `H` is the haar hash of an image.
+[optional] `hash=H` is the haar hash of an image.
 <br>
 
 There should be at least one file or md5 or hash provided.
