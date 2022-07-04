@@ -120,6 +120,8 @@ void http_server(const std::string host, const int port, const std::string datab
         { "post_id", post_id },
         { "md5", md5 }
       };
+      response.status = 400;
+      DEBUG("Adding Error. post_id: {}, md5: {}, error: {}\n", post_id, md5, e.what());
     }
     
     // [mod] end
@@ -162,6 +164,8 @@ void http_server(const std::string host, const int port, const std::string datab
         { "post_id", post_id },
         { "md5", md5 }
       };
+      response.status = 400;
+      DEBUG("Adding Error. post_id: {}, md5: {}, error: {}\n", post_id, md5, e.what());
     }
     
     // [mod] end
@@ -215,67 +219,116 @@ void http_server(const std::string host, const int port, const std::string datab
       data = {
         { "error", msg }
       };
+      response.status = 400;
+      DEBUG("Removing Error. {}\n", msg);
     } else { // invalid param & ret false
       data = {
         { "error", "Invalid request url, you should supply integer post_id or md5 hash string (32-digit)." }
       };
+      response.status = 400;
+      DEBUG("Removing Error. Invalid request url, you should supply integer post_id or md5 hash string (32-digit).\n");
     }
     
     response.set_content(data.dump(4), "application/json");
   });
   
   // Searching for images
-  server.Post("/query", [&](const auto &request, auto &response) {
+  server.Post("/query/([0-9a-fA-Fiqdb_file]+)", [&](const auto &request, auto &response) {
     std::shared_lock lock(mutex_);
     
     int limit = 10;
     sim_vector matches;
     json data = json::array();
+    std::string tmp_param = request.matches[1];
+    bool bad_request = false;
+    bool couldnt_find_img = false;
     
+    // handle param
     if (request.has_param("limit"))
       limit = stoi(request.get_param_value("limit"));
     
-    if (request.has_param("hash")) {
-      const auto hash = request.get_param_value("hash");
-      HaarSignature haar = HaarSignature::from_hash(hash);
-      matches = memory_db->queryFromSignature(haar, limit);
-    } else if (request.has_file("file")) {
+    // handle request url
+    // input image file
+    if (tmp_param == "file" && request.has_file("file"))
+    {
       const auto &file = request.get_file_value("file");
       matches = memory_db->queryFromBlob(file.content, limit);
-    } else if (request.has_param("md5")) {
-      const auto md5 = request.get_param_value("md5");
+    }
+    // input image haar hash
+    else if (tmp_param.size() == 533 && tmp_param.substr(0, 5) == "iqdb_" && std::all_of(tmp_param.begin()+6, tmp_param.end(), ::isxdigit))
+    {
+      const auto hash = tmp_param;
+      HaarSignature haar = HaarSignature::from_hash(hash);
+      matches = memory_db->queryFromSignature(haar, limit);
+      if (matches.size() == 0)
+        couldnt_find_img = true;
+    }
+    // input image md5 hash
+    else if (tmp_param.size() == 32 && std::all_of(tmp_param.begin(), tmp_param.end(), ::isxdigit))
+    {
+      const auto md5 = tmp_param;
       const auto img = memory_db->getImageByMD5(md5);
       if (img != std::nullopt)
         matches = memory_db->queryFromSignature(img->haar(), limit);
-    } else {
-      throw param_error("`POST /query` requires a `file`, `hash`, or `md5` param");
+      else
+        couldnt_find_img = true;
     }
-    // rm duplicate in matches
-    // insert non-duplicate elements into tmp
-    sim_vector tmp;
-    tmp.reserve(matches.size());
-    for (auto m : matches)
+    // invalid request url
+    else
     {
-      if (std::find(tmp.begin(), tmp.end(), m) == tmp.end())
-        tmp.emplace_back(m);
+      bad_request = true;
     }
-    // overwrite matches with tmp
-    matches.assign(tmp.begin(), tmp.end());
     
-    for (const auto &match : matches) {
-      auto image = memory_db->getImage(match.id);
-      auto haar = image->haar();
+    if (!bad_request && !couldnt_find_img)
+    {
+      // rm duplicate in matches
+      // insert non-duplicate elements into tmp
+      sim_vector tmp;
+      tmp.reserve(matches.size());
+      for (auto m : matches)
+      {
+        if (std::find(tmp.begin(), tmp.end(), m) == tmp.end())
+          tmp.emplace_back(m);
+      }
+      // overwrite matches with tmp
+      matches.assign(tmp.begin(), tmp.end());
       
-      data += {
-        { "post_id", match.id },
-        { "md5", image->md5 },
-        { "score", match.score },
-        { "hash", haar.to_string() },
-        { "signature", {
-          { "avglf", haar.avglf },
-          { "sig", haar.sig },
-        }}
+      for (const auto &match : matches) {
+        if (limit == 0)
+          break;
+        
+        auto image = memory_db->getImage(match.id);
+        auto haar = image->haar();
+        
+        data += {
+          { "post_id", match.id },
+          { "md5", image->md5 },
+          { "score", match.score },
+          { "hash", haar.to_string() },
+          { "signature", {
+            { "avglf", haar.avglf },
+            { "sig", haar.sig },
+          }}
+        };
+        
+        limit--;
+      }
+    }
+    else if (bad_request)
+    {
+      data = {
+        { "error", "Invalid request url, you should supply `file` with image file, md5 hash string (32-digit), or haar hash string (start with `iqdb_`, 533-digit)." }
       };
+      response.status = 400;
+      DEBUG("Querying Error. Invalid request url, you should supply `file` with image file, md5 hash string (32-digit), or haar hash string (start with `iqdb_`, 533-digit).\n");
+    }
+    else if (couldnt_find_img)
+    {
+      data = {
+        { "error", "Couldn't find image from supplied hash." }
+      };
+      response.status = 400;
+      DEBUG("Couldn't find image from supplied hash.\n");
     }
     
     response.set_content(data.dump(4), "application/json");

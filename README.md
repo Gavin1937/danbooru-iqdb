@@ -14,7 +14,7 @@ This version powers the reverse image search for [Danbooru](https://github.com/d
 # Run IQDB in Docker on port 5588. This will create a database file in the current directory called `iqdb.sqlite`.
 docker run --rm -it -p 5588:5588 -v $PWD:/mnt iqdb http 0.0.0.0 5588 /mnt/iqdb.sqlite
 
-# Test that IQDB is running
+# Test that IQDB is running & get image_count & last_post_id
 curl -v http://localhost:5588/status
 
 # Add `test.jpg` to IQDB with latest ID.
@@ -27,7 +27,7 @@ curl -F file=@test.jpg http://localhost:5588/images/1234
 curl -X DELETE http://localhost:5588/images/1234
 
 # Find images visually similar to `test.jpg`.
-curl -F file=@test.jpg http://localhost:5588/query
+curl -F file=@test.jpg http://localhost:5588/query/file
 ```
 
 Click the Gitpod badge above to open a demo instance of IQDB in
@@ -40,6 +40,20 @@ IQDB.
 IQDB is a simple HTTP server with a JSON API. It has commands for adding
 images, removing images, and searching for similar images. Image hashes are
 stored on disk in an SQLite database.
+
+### Get database status & get image_count & last_post_id
+
+```bash
+curl http://localhost:5588/status
+```
+
+**Response Example**
+```json
+{
+  "image_count": 0,
+  "last_post_id": 0
+}
+```
 
 ### Add image with latest post_id
 
@@ -153,21 +167,25 @@ or
 
 ### Searching for images
 
-To search for an image, POST a `file` to `/query?limit=N&md5=M&hash=H`.
+To search for an image, POST to `/query/:param` where `:param` can be one of following strings
 <br>
-There are three optional url parameters:
-<br>
-[optional] `limit=N` is the maximum number of results to return (default 10).
-<br>
-[optional] `md5=M` is the md5 hash of a file.
-<br>
-[optional] `hash=H` is the haar hash of an image.
-<br>
+| `:param`         | description                                                                                                                                                                           | examples                                                                    |
+|------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------|
+| `file`           | Search by image visual similarity. You MUST provide a file with this `:param`                                                                                                         | `curl -F file=@test.jpg 'http://localhost:5588/query/file'`                 |
+| haar hash string | Search by image visual similarity with input haar hash. Haar hash are `"hash"` attribute of an image (checkout following json). They MUST start with `iqdb_` and length equal to 533. | `curl -d '' 'http://localhost:5588/query/iqdb_3fe4c6d513c538413fad...'`     |
+| MD5 hash string  | Search images who has exact MD5 hash string with input                                                                                                                                | `curl -d '' 'http://localhost:5588/query/1234567890abcdef1234567890abcdef'` |
 
-There should be at least one file or md5 or hash provided.
+
+You can also supply an optional parameter `limit=N` which will limit the number of query responsed. By default, IQDB will return top 10 query.
 
 ```bash
 curl -F file=@test.jpg 'http://localhost:5588/query?limit=10'
+```
+
+**Example response**
+
+```bash
+curl -F file=@test.jpg 'http://localhost:5588/query?limit=1'
 ```
 
 ```json
@@ -175,7 +193,7 @@ curl -F file=@test.jpg 'http://localhost:5588/query?limit=10'
   {
     "hash":"iqdb_3fe4c6d513c538413fadbc7235383ab23f97674a40909b92f27ff97af97df980fcfdfd00fd71fd77fd7efdfffe00fe7dfe7ffe80fee7fefeff00ff71ff7aff7fff80ffe7fff1fff4fffa00020008001d009d02830285028803020381038304850701078208000801f97df9fffb7afcfdfd77fe00fe7dfe80fefaff00ff7aff7ffffaffff00030007000e000f0010002000830087008e008f009000a0010c010e018202810283028502860290030203810383058306000b83f67afafdfb7ffcf7fcfefcfffd7dfef3fefafeffff7afffa00030007000e001000200080008400870088008e0090010001030107010e018001810183020d02810282029003030483048d0507050e0680",
     "post_id":1234,
-    "md5": "1234567890abcde",
+    "md5": "1234567890abcdef1234567890abcdef",
     "score":100,
     "signature":{
       "avglf":[0.6492715250149176,0.05807835483220937,0.022854957762458],
@@ -192,6 +210,23 @@ chosen when you added the image.
 You will have to determine a good cutoff score yourself. Generally, 90+ is a
 strong match, 70+ is weak match (possibly a false positive), and <50 is no
 match.
+
+**Invalid request url**
+```json
+{
+  "error": "Invalid request url, you should supply `file` with image file, md5 hash string (32-digit), or haar hash string (start with `iqdb_`, 533-digit)."
+}
+```
+
+**Couldn't find image**
+```json
+{
+  "error": "Couldn't find image from supplied hash."
+}
+```
+ * This error usually appears when you search with md5 hash string and it does not exists in database.
+
+
 
 # Compiling
 
