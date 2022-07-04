@@ -90,6 +90,7 @@ void http_server(const std::string host, const int port, const std::string datab
     std::string md5 = "";
     bool invalid_id = false;
     bool no_file = false;
+    bool invalid_md5 = false;
     json data;
     
     // checking
@@ -104,12 +105,16 @@ void http_server(const std::string host, const int port, const std::string datab
       // handle MD5 param
       if (request.has_param("md5")) {
         md5 = request.get_param_value("md5");
+        if (md5.size() != 32 || !std::all_of(md5.begin(), md5.end(), ::isxdigit))
+          invalid_md5 = true;
       } else {
         md5 = getMD5(file.content);
       }
       
       // add image & create response data
       try {
+        if (invalid_md5)
+          throw image_error("Invalid MD5 parameter, MD5 must be 32-digit hex string.");
         const auto signature = HaarSignature::from_file_content(file.content);
         memory_db->addImage(post_id, md5, signature); // replace_img = true
         data = {
@@ -159,6 +164,8 @@ void http_server(const std::string host, const int port, const std::string datab
     const auto &file = request.get_file_value("file");
     std::string md5 = "";
     bool no_file = false;
+    bool invalid_md5 = false;
+    json data;
     
     // checking
     if (!request.has_file("file"))
@@ -169,13 +176,16 @@ void http_server(const std::string host, const int port, const std::string datab
       // handle MD5 param
       if (request.has_param("md5")) {
         md5 = request.get_param_value("md5");
+        if (md5.size() != 32 || !std::all_of(md5.begin(), md5.end(), ::isxdigit))
+          invalid_md5 = true;
       } else {
         md5 = getMD5(file.content);
       }
       
       // add image & create response data
-      json data;
       try {
+        if (invalid_md5)
+          throw image_error("Invalid MD5 parameter, MD5 must be 32-digit hex string.");
         const auto signature = HaarSignature::from_file_content(file.content);
         memory_db->addImage(post_id, md5, signature, false); // replace_img = false
         data = {

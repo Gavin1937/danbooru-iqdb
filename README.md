@@ -61,6 +61,7 @@ To add an image to database with latest post_id, POST a file to `/images?md5=M` 
 <br>
 You can supply an optional parameter `md5` with value `M` which is the md5 hash of the image.
 If this parameter is supplied, iqdb will use it as the hash stored in db.
+`md5` parameter MUST be a valid md5 hash string (32-digit hex).
 
 ```bash
 curl -F file=@test.jpg http://localhost:5588/images
@@ -75,6 +76,7 @@ be any number to identify the image.
 <br>
 And, you can supply an optional parameter `md5` with value `M` which is the md5 hash of a file.
 If this parameter is supplied, iqdb will use it as the hash stored in db.
+`md5` parameter MUST be a valid md5 hash string (32-digit hex).
 <br>
 If supplied `id` is duplicated, iqdb will replace the image in database with supplied image file.
 
