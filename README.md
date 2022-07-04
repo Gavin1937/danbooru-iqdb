@@ -12,10 +12,13 @@ This version powers the reverse image search for [Danbooru](https://github.com/d
 
 ```bash
 # Run IQDB in Docker on port 5588. This will create a database file in the current directory called `iqdb.sqlite`.
-docker run --rm -it -p 5588:5588 -v $PWD:/mnt evazion/iqdb http 0.0.0.0 5588 /mnt/iqdb.sqlite
+docker run --rm -it -p 5588:5588 -v $PWD:/mnt iqdb http 0.0.0.0 5588 /mnt/iqdb.sqlite
 
 # Test that IQDB is running
 curl -v http://localhost:5588/status
+
+# Add `test.jpg` to IQDB with latest ID.
+curl -F file=@test.jpg http://localhost:5588/images
 
 # Add `test.jpg` to IQDB with ID 1234. You will need to generate a unique ID for every image you add.
 curl -F file=@test.jpg http://localhost:5588/images/1234
@@ -35,22 +38,34 @@ IQDB is a simple HTTP server with a JSON API. It has commands for adding
 images, removing images, and searching for similar images. Image hashes are
 stored on disk in an SQLite database.
 
-#### Adding images
+#### Add image with latest post_id
 
-To add an image to the database, POST a file to `/images/:id?md5=M` where
+To add an image to database with latest post_id, POST a file to `/images?md5=M` where
+<br>
+You can supply an optional parameter `md5` with value `M` which is the md5 hash of the image.
+If this parameter is supplied, iqdb will use it as the hash stored in db.
+
+```bash
+curl -F file=@test.jpg http://localhost:5588/images
+```
+
+#### Add/Replace image with specific post_id
+
+To add an image to the database with specific `post_id`, POST a file to `/images/:id?md5=M` where
 <br>
 `:id` is an ID number for the image. On Danbooru, the IDs used are post IDs, but they can
 be any number to identify the image.
 <br>
-And, you can supply optional parameter `md5` with value `M` which is the md5 hash of a file.
+And, you can supply an optional parameter `md5` with value `M` which is the md5 hash of a file.
 If this parameter is supplied, iqdb will use it as the hash stored in db.
-
+<br>
+If supplied `id` is duplicated, iqdb will replace the image in database with supplied image file.
 
 ```bash
 curl -F file=@test.jpg http://localhost:5588/images/1234
 ```
 
-**If insert success:**
+**If successfully Add or Replace image:**
 
 ```json
 {
@@ -64,18 +79,32 @@ curl -F file=@test.jpg http://localhost:5588/images/1234
 }
 ```
 
-**If insert fail due to MD5 UNIQUE constrain fail:**
-
-```json
-{
-  "error": "MD5 UNIQUE constrain failed, this file already in database.",
-  "md5": "123456789abcdef"
-}
-```
-
 The `signature` is the raw IQDB signature of the image. Two images are similar
 if their signatures are similar. The `hash` is the signature encoded as a hex
 string.
+
+**If Add or Replace fail due to post_id UNIQUE constrain fail:**
+
+```json
+{
+  "error": "post_id UNIQUE constrain failed, this post_id already in database.",
+  "md5": "123456789abcdef",
+  "post_id": 1234
+}
+```
+
+ * This error may caused by multiple programs manipulating database at the same time and iqdb server hasn't update its `post_id` yet. iqdb server will update its `post_id` after catching this error. You may try to Add image again after recieving this error.
+
+
+**If Add or Replace fail due to MD5 UNIQUE constrain fail:**
+
+```json
+{
+  "error": "MD5 UNIQUE constrain failed, this MD5 already in database.",
+  "md5": "123456789abcdef",
+  "post_id": 1234
+}
+```
 
 #### Removing images
 

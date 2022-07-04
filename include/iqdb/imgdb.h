@@ -87,32 +87,32 @@ typedef Idx sig_t[NUM_COEFS];
 class IQDB {
 public:
   IQDB(std::string filename = ":memory:");
-
+  
   // Image queries.
   sim_vector queryFromSignature(const HaarSignature& img, size_t numres = 10);
   sim_vector queryFromBlob(const std::string blob, int numres = 10);
-
+  
   // Stats.
   size_t getImgCount();
   postId getLastPostId();
   bool isDeleted(imageId id); // XXX id is the iqdb id
-
+  
   // DB maintenance.
-  void addImage(imageId id, const std::string& md5, const HaarSignature& signature);
+  void addImage(imageId id, const std::string& md5, const HaarSignature& signature, bool replace_img = true);
   std::optional<Image> getImage(imageId post_id);
   std::optional<Image> getImageByMD5(const std::string& md5);
   bool removeImage(imageId id);
   bool removeImageByMD5(const std::string& md5);
   void loadDatabase(std::string filename);
-
+  
 private:
   void addImageInMemory(imageId iqdb_id, imageId post_id, const HaarSignature& signature);
-
+  
   std::vector<image_info> m_info;
   std::unique_ptr<SqliteDB> sqlite_db_;
   bucket_set imgbuckets;
   postId last_post_id = 0;
-
+  
 private:
   void operator=(const IQDB &);
 };

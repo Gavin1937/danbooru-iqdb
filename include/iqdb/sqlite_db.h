@@ -24,14 +24,14 @@ struct Image {
   double avglf2;
   double avglf3;
   std::vector<char> sig; // The `int16_t sig[3][40]` array, stored as a binary blob.
-
+  
   HaarSignature haar() const;
 };
 
 // Initialize the database, creating the table if it doesn't exist.
 static auto initStorage(const std::string& path = ":memory:") {
   using namespace sqlite_orm;
-
+  
   auto storage = make_storage(path,
     make_table("images",
       make_column("id",       &Image::id, primary_key()),
@@ -43,7 +43,7 @@ static auto initStorage(const std::string& path = ":memory:") {
       make_column("sig",      &Image::sig)
     )
   );
-
+  
   storage.sync_schema();
   return storage;
 }
@@ -52,10 +52,10 @@ static auto initStorage(const std::string& path = ":memory:") {
 class SqliteDB {
 public:
   using Storage = decltype(initStorage());
-
+  
   // Open database at path. Default to a temporary memory-only database.
   SqliteDB(const std::string& path = ":memory:") : storage_(initStorage(path)) {};
-
+  
   // Get number of images
   int getImgCount();
   // Get MAX post id
@@ -64,20 +64,20 @@ public:
   std::optional<Image> getImage(postId post_id);
   // Get an image from the database by input md5, if it exists.
   std::optional<Image> getImageByMD5(const std::string& md5);
-
+  
   // Add the image to the database. Replace the image if it already exists. Returns the internal IQDB id.
-  int addImage(postId post_id, const std::string& md5, HaarSignature signature);
-
+  int addImage(postId post_id, const std::string& md5, HaarSignature signature, bool replace_img = true);
+  
   // Remove the image from the database.
   void removeImage(postId post_id);
-
+  
   // Call a function for each image in the database.
   void eachImage(std::function<void (const Image&)>);
-
+  
 private:
   // The SQLite database.
   Storage storage_;
-
+  
   // A mutex around the database
   std::shared_mutex sql_mutex_;
 };

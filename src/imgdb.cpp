@@ -63,19 +63,29 @@ void bucket_set::eachBucket(const HaarSignature &sig, std::function<void(bucket_
   }
 }
 
-void IQDB::addImage(imageId post_id, const std::string& md5, const HaarSignature& haar) {
-  removeImage(post_id);
-  int iqdb_id = sqlite_db_->addImage(post_id, md5, haar);
-  if (iqdb_id == -1) {
-    // fail insertint into sqlite db
-    // assuming UNIQUE constraint on md5
-    // throw exception and handle it outside
-    DEBUG("MD5 UNIQUE constrain failed. post_id = {}, md5 = {}\n", post_id, md5);
-    throw image_error("MD5 UNIQUE constrain failed.");
+void IQDB::addImage(imageId post_id, const std::string& md5, const HaarSignature& haar, bool replace_img) {
+  
+  if (replace_img)
+    removeImage(post_id);
+  
+  int iqdb_id = sqlite_db_->addImage(post_id, md5, haar, replace_img);
+  // fail to insert into sqlite db
+  if (iqdb_id == -1) { // post_id unique constraint failed
+    // current last_post_id may be out dated, update it
+    last_post_id = sqlite_db_->getMaxPostId();
+    
+    DEBUG("post_id UNIQUE constrain failed. post_id={}, md5={}\n", post_id, md5);
+    throw image_error("post_id UNIQUE constrain failed, this post_id already in database.");
+  }
+  else if (iqdb_id == -2) { // md5 unique constraint failed
+    DEBUG("MD5 UNIQUE constrain failed. post_id={}, md5={}\n", post_id, md5);
+    throw image_error("MD5 UNIQUE constrain failed, this MD5 already in database.");
   }
   addImageInMemory(iqdb_id, post_id, haar);
-
-  DEBUG("Added post #{} to memory and database (iqdb={} haar={}).\n", post_id, iqdb_id, haar.to_string());
+  
+  last_post_id++;
+  
+  DEBUG("Added post #{} to memory and database (iqdb={} md5={} haar={}).\n", post_id, iqdb_id, md5, haar.to_string());
 }
 
 void IQDB::addImageInMemory(imageId iqdb_id, imageId post_id, const HaarSignature& haar) {
@@ -83,16 +93,14 @@ void IQDB::addImageInMemory(imageId iqdb_id, imageId post_id, const HaarSignatur
     DEBUG("Growing m_info array (size={}).\n", m_info.size());
     m_info.resize(post_id + 50000);
   }
-
+  
   imgbuckets.add(haar, iqdb_id);
-
+  
   image_info& info = m_info.at(iqdb_id);
   info.id = post_id;
   info.avgl.v[0] = static_cast<Score>(haar.avglf[0]);
   info.avgl.v[1] = static_cast<Score>(haar.avglf[1]);
   info.avgl.v[2] = static_cast<Score>(haar.avglf[2]);
-  
-  last_post_id++;
 }
 
 void IQDB::loadDatabase(std::string filename) {

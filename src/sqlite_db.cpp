@@ -2,6 +2,7 @@
 #include <iostream>
 #include <optional>
 #include <vector>
+#include <system_error>
 
 #include <iqdb/debug.h>
 #include <iqdb/imglib.h>
@@ -73,7 +74,7 @@ std::optional<Image> SqliteDB::getImageByMD5(const std::string& md5) {
   }
 }
 
-int SqliteDB::addImage(postId post_id, const std::string& md5, HaarSignature signature) {
+int SqliteDB::addImage(postId post_id, const std::string& md5, HaarSignature signature, bool replace_img) {
   int id = -1;
   auto sig_ptr = (const char*)signature.sig;
   std::vector<char> sig_blob(sig_ptr, sig_ptr + sizeof(signature.sig));
@@ -83,10 +84,19 @@ int SqliteDB::addImage(postId post_id, const std::string& md5, HaarSignature sig
   
   storage_.transaction([&] {
     try {
-      removeImage(post_id);
+      if (replace_img)
+        removeImage(post_id);
       id = storage_.insert(image);
       return true; // commit
-    } catch (...) {
+    } catch (const std::system_error& e) {
+      // post_id unique constraint failed
+      if (e.code().value() == 19 && std::string(e.what()).find("images.post_id") != std::string::npos)
+        id = -1;
+      // md5 unique constraint failed
+      else if (e.code().value() == 19 && std::string(e.what()).find("images.md5") != std::string::npos)
+        id = -2;
+      else 
+        DEBUG("Unhandled SQLite exception, error code: {}, error msg: {}\n", e.code().value(), e.what());
       return false; // rollback
     }
   });
