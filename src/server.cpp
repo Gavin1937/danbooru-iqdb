@@ -86,7 +86,6 @@ void http_server(const std::string host, const int port, const std::string datab
     std::unique_lock lock(mutex_);
     
     const postId post_id = std::stoi(request.matches[1]);
-    const auto &file = request.get_file_value("file");
     std::string md5 = "";
     bool invalid_id = false;
     bool no_file = false;
@@ -102,6 +101,8 @@ void http_server(const std::string host, const int port, const std::string datab
     
     if (!invalid_id && !no_file)
     {
+      const auto& file = request.get_file_value("file");
+      
       // handle MD5 param
       if (request.has_param("md5")) {
         md5 = request.get_param_value("md5");
@@ -142,7 +143,7 @@ void http_server(const std::string host, const int port, const std::string datab
         { "error", "Input post_id must greater than 0." }
       };
       response.status = 400;
-      DEBUG("Adding Error. Input post_id must greater than 0.");
+      DEBUG("Adding Error. Input post_id must greater than 0.\n");
     }
     else if (no_file)
     {
@@ -150,7 +151,7 @@ void http_server(const std::string host, const int port, const std::string datab
         { "error", "`POST /images/:id?md5=M` requires a `file` param." }
       };
       response.status = 400;
-      DEBUG("Adding Error. `POST /images/:id?md5=M` requires a `file` param.");
+      DEBUG("Adding Error. `POST /images/:id?md5=M` requires a `file` param.\n");
     }
     
     response.set_content(data.dump(4), "application/json");
@@ -161,7 +162,6 @@ void http_server(const std::string host, const int port, const std::string datab
     std::unique_lock lock(mutex_);
     
     const postId post_id = memory_db->getLastPostId()+1;
-    const auto &file = request.get_file_value("file");
     std::string md5 = "";
     bool no_file = false;
     bool invalid_md5 = false;
@@ -173,6 +173,8 @@ void http_server(const std::string host, const int port, const std::string datab
     
     if (!no_file)
     {
+      const auto& file = request.get_file_value("file");
+      
       // handle MD5 param
       if (request.has_param("md5")) {
         md5 = request.get_param_value("md5");
@@ -210,10 +212,10 @@ void http_server(const std::string host, const int port, const std::string datab
     else if (no_file)
     {
       data = {
-        { "error", "`POST /images/:id?md5=M` requires a `file` param." }
+        { "error", "`POST /images?md5=M` requires a `file` param." }
       };
       response.status = 400;
-      DEBUG("Adding Error. `POST /images/:id?md5=M` requires a `file` param.");
+      DEBUG("Adding Error. `POST /images?md5=M` requires a `file` param.\n");
     }
     
     response.set_content(data.dump(4), "application/json");
