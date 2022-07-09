@@ -27,33 +27,31 @@ void SqliteDB::eachImage(std::function<void (const Image&)> func) {
 int SqliteDB::getImgCount()
 {
   std::unique_lock lock(sql_mutex_);
-  auto results = storage_.count(&Image::post_id);
   
-  if (results) {
-    return static_cast<int>(results);
-  } else {
+  auto results = storage_.count(&Image::post_id);
+  if (!results) {
     DEBUG("Couldn't count post_id in sqlite database.\n");
     return 0;
   }
+  return results;
 }
 
 postId SqliteDB::getMaxPostId()
 {
   std::unique_lock lock(sql_mutex_);
-  auto results = storage_.max(&Image::post_id);
   
-  if (results) {
-    return static_cast<postId>(*results);
-  } else {
-    DEBUG("Couldn't find max post_id in sqlite database.\n");
+  auto results = storage_.max(&Image::post_id);
+  if (!results) {
+    DEBUG("Couldn't count post_id in sqlite database.\n");
     return 0;
   }
+  return *results;
 }
 
 std::optional<Image> SqliteDB::getImage(postId post_id) {
   std::unique_lock lock(sql_mutex_);
-  auto results = storage_.get_all<Image>(where(c(&Image::post_id) == post_id));
   
+  auto results = storage_.get_all<Image>(where(c(&Image::post_id) == post_id));
   if (results.size() == 1) {
     return results[0];
   } else {

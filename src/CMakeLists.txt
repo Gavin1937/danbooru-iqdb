@@ -32,7 +32,7 @@ set(IQDB_DEBUG_CFLAGS
   # https://gcc.gnu.org/onlinedocs/gcc/Warning-Options.html
   -Wall -Wextra -Werror -pedantic -pedantic-errors -Wno-unused-parameter
   -Wdouble-promotion -Wformat-overflow=2 -Wuninitialized -Wstrict-overflow=5
-  -Wconversion -Wshadow
+  -Wconversion -Wshadow -Wno-missing-field-initializers -Wno-missing-braces
 
   # https://gcc.gnu.org/onlinedocs/gcc/Instrumentation-Options.html
   -fsanitize=undefined -fsanitize=leak -fsanitize=address -fstack-protector-all
